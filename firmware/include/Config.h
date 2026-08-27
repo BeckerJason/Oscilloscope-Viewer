@@ -11,7 +11,7 @@
 // SVG
 // ========================
 
-#define SVG_URL "https://www.svgrepo.com/show/4957/basic-rainbow.svg"
+#define SVG_URL "https://www.svgrepo.com/show/62580/geometrical-basic-shapes-outlines-in-a-graphic-connected-by-lines.svg"
 
 // ========================
 // Renderer
