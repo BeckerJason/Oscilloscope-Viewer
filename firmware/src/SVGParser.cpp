@@ -132,7 +132,8 @@ bool SVGParser::parse(
 )
 {
     points.clear();
-
+    // Avoid lots of repeated heap reallocations
+    points.reserve(4000);
     int position = 0;
 
     // ========================================================
@@ -587,49 +588,44 @@ bool SVGParser::parsePath(
     // ========================================================
 
     auto cubicBezier =
-        [&](float x0,
-            float y0,
-            float x1,
-            float y1,
-            float x2,
-            float y2,
-            float x3,
-            float y3)
-    {
-        constexpr int segments = 24;
+    [&](float x0,
+        float y0,
+        float x1,
+        float y1,
+        float x2,
+        float y2,
+        float x3,
+        float y3)
+{
+    constexpr int segments = 8;
 
-        for (
-            int i = 1;
-            i <= segments;
-            i++
-        ) {
+    for (int i = 1; i <= segments; i++) {
 
-            float t =
-                (float)i /
-                (float)segments;
+        float t =
+            (float)i /
+            (float)segments;
 
-            float u =
-                1.0f - t;
+        float u = 1.0f - t;
 
-            float x =
-                u*u*u*x0 +
-                3.0f*u*u*t*x1 +
-                3.0f*u*t*t*x2 +
-                t*t*t*x3;
+        float x =
+            u*u*u*x0 +
+            3.0f*u*u*t*x1 +
+            3.0f*u*t*t*x2 +
+            t*t*t*x3;
 
-            float y =
-                u*u*u*y0 +
-                3.0f*u*u*t*y1 +
-                3.0f*u*t*t*y2 +
-                t*t*t*y3;
+        float y =
+            u*u*u*y0 +
+            3.0f*u*u*t*y1 +
+            3.0f*u*t*t*y2 +
+            t*t*t*y3;
 
-            points.push_back({
-                x,
-                y,
-                false
-            });
-        }
-    };
+        points.push_back({
+            x,
+            y,
+            false
+        });
+    }
+};
 
 
     // ========================================================
@@ -637,45 +633,40 @@ bool SVGParser::parsePath(
     // ========================================================
 
     auto quadraticBezier =
-        [&](float x0,
-            float y0,
-            float x1,
-            float y1,
-            float x2,
-            float y2)
-    {
-        constexpr int segments = 24;
+    [&](float x0,
+        float y0,
+        float x1,
+        float y1,
+        float x2,
+        float y2)
+{
+    constexpr int segments = 8;
 
-        for (
-            int i = 1;
-            i <= segments;
-            i++
-        ) {
+    for (int i = 1; i <= segments; i++) {
 
-            float t =
-                (float)i /
-                (float)segments;
+        float t =
+            (float)i /
+            (float)segments;
 
-            float u =
-                1.0f - t;
+        float u = 1.0f - t;
 
-            float x =
-                u*u*x0 +
-                2.0f*u*t*x1 +
-                t*t*x2;
+        float x =
+            u*u*x0 +
+            2.0f*u*t*x1 +
+            t*t*x2;
 
-            float y =
-                u*u*y0 +
-                2.0f*u*t*y1 +
-                t*t*y2;
+        float y =
+            u*u*y0 +
+            2.0f*u*t*y1 +
+            t*t*y2;
 
-            points.push_back({
-                x,
-                y,
-                false
-            });
-        }
-    };
+        points.push_back({
+            x,
+            y,
+            false
+        });
+    }
+};
 
 
     // ========================================================
