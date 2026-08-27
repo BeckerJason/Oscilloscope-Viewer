@@ -1,43 +1,157 @@
 #include <Arduino.h>
-#include "PictureData.h"
-#define X_OUT 25
-#define Y_OUT 26
 
-void drawLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, int steps)
+#include "Config.h"
+#include "WiFiManager.h"
+#include "SVGFetcher.h"
+#include "SVGParser.h"
+#include "ScopeRenderer.h"
+#include "VectorText.h"
+
+#include <vector>
+
+std::vector<VectorPoint> vectorImage;
+
+
+// ============================================================
+// Show status text on the oscilloscope
+// ============================================================
+
+void showStatus(const String& text, unsigned long durationMs = 1000)
 {
-    for (int i = 0; i <= steps; i++) {
-        float t = (float)i / steps;
+    std::vector<VectorPoint> statusImage =
+        VectorText::create(text);
 
-        uint8_t x = x0 + (x1 - x0) * t;
-        uint8_t y = y0 + (y1 - y0) * t;
+    ScopeRenderer::setImage(statusImage);
 
-        dacWrite(X_OUT, x);
-        dacWrite(Y_OUT, 255 - y);
+    unsigned long start = millis();
 
-        delayMicroseconds(5);
+    while (millis() - start < durationMs) {
+        ScopeRenderer::draw();
     }
 }
 
-void setup() {
+
+// ============================================================
+// Show an error forever
+// ============================================================
+
+void showError(const String& text)
+{
+    std::vector<VectorPoint> errorImage =
+        VectorText::create(text);
+
+    ScopeRenderer::setImage(errorImage);
+
+    while (true) {
+        ScopeRenderer::draw();
+    }
 }
 
-void loop() {
-    for (size_t i = 0; i < pointCount; i++) {
 
-        if (image[i].move) {
-            // Jump to beginning of new shape
-            dacWrite(X_OUT, image[i].x);
-            dacWrite(Y_OUT, 255 - image[i].y);
-            continue;
-        }
+// ============================================================
+// Setup
+// ============================================================
 
-        // Draw from previous point to current point
-        drawLine(
-            image[i - 1].x,
-            image[i - 1].y,
-            image[i].x,
-            image[i].y,
-            20
+void setup()
+{
+    Serial.begin(115200);
+
+    delay(500);
+
+    Serial.println();
+    Serial.println("ESP32 Scope Vector Display");
+
+    ScopeRenderer::begin();
+
+
+    // --------------------------------------------------------
+    // Boot
+    // --------------------------------------------------------
+
+    showStatus("BOOT", 800);
+
+
+    // --------------------------------------------------------
+    // Connect Wi-Fi
+    // --------------------------------------------------------
+
+    showStatus("WIFI", 800);
+
+    if (!WiFiManager::connect()) {
+
+        Serial.println("Stopping: WiFi failed.");
+
+        showError("WIFI ERROR");
+    }
+
+
+    showStatus("WIFI OK", 700);
+
+
+    // --------------------------------------------------------
+    // Download SVG
+    // --------------------------------------------------------
+
+    showStatus("DOWNLOAD", 800);
+
+    String svg;
+
+    if (!SVGFetcher::fetch(
+        SVG_URL,
+        svg
+    )) {
+
+        Serial.println(
+            "Stopping: SVG download failed."
         );
+
+        showError("HTTP ERROR");
     }
+
+
+    // --------------------------------------------------------
+    // Parse SVG
+    // --------------------------------------------------------
+
+    showStatus("PARSING", 800);
+
+    if (!SVGParser::parse(
+        svg,
+        vectorImage
+    )) {
+
+        Serial.println(
+            "Stopping: SVG parsing failed."
+        );
+
+        showError("SVG ERROR");
+    }
+
+
+    // --------------------------------------------------------
+    // Ready
+    // --------------------------------------------------------
+
+    showStatus("READY", 800);
+
+
+    // --------------------------------------------------------
+    // Load SVG into renderer
+    // --------------------------------------------------------
+
+    ScopeRenderer::setImage(
+        vectorImage
+    );
+
+    Serial.println("Ready.");
+}
+
+
+// ============================================================
+// Main loop
+// ============================================================
+
+void loop()
+{
+    ScopeRenderer::draw();
 }
